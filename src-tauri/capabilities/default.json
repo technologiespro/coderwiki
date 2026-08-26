@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Основные разрешения SmartWiki: события (прогресс генерации, чат, xdp) и core API",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
