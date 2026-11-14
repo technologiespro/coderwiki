@@ -1,0 +1,12 @@
+[package]
+name = "xdp-util"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zstd = { version = "0.13", features = ["zdict_builder"] }
+tar = "0.4"
+
+[profile.release]
+lto = true
+strip = true

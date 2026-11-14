@@ -1,0 +1,32 @@
+{
+  "name": "coderwiki-frontend",
+  "version": "1.15.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "vite --host 0.0.0.0 --port 3000",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:msi": "tauri build --bundles msi"
+  },
+  "dependencies": {
+    "highlight.js": "^11.12.0",
+    "marked": "^15.0.6",
+    "marked-highlight": "^2.2.4",
+    "mermaid": "^11.17.2",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.16",
+    "@tauri-apps/cli": "^2.11.4",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.17",
+    "vite": "^6.1.0"
+  }
+}
