@@ -22,17 +22,41 @@ pub async fn fetch_models(lm_url: Option<&str>) -> Result<Value, String> {
     resp.json::<Value>().await.map_err(|e| format!("Некорректный ответ LM Studio: {}", e))
 }
 
+// Параметры сэмплирования: для технической документации — точность важнее креативности
+#[derive(Clone, Copy, Debug)]
+pub struct Sampling {
+    pub temperature: f64,
+    pub top_p: f64,
+    pub top_k: u32,
+    pub frequency_penalty: f64,
+}
+
+impl Default for Sampling {
+    fn default() -> Self {
+        Self { temperature: 0.2, top_p: 0.9, top_k: 40, frequency_penalty: 0.1 }
+    }
+}
+
 // Стриминговый chat completions; on_delta вызывается на каждый фрагмент
 pub async fn chat_stream<F: FnMut(&str)>(
     lm_url: Option<&str>,
     model: &str,
     messages: &Value,
+    sampling: &Sampling,
     mut on_delta: F,
 ) -> Result<String, String> {
     let url = format!("{}/v1/chat/completions", base_url(lm_url));
     let resp = reqwest::Client::new()
         .post(&url)
-        .json(&json!({ "model": model, "messages": messages, "stream": true, "temperature": 0.3 }))
+        .json(&json!({
+            "model": model,
+            "messages": messages,
+            "stream": true,
+            "temperature": sampling.temperature,
+            "top_p": sampling.top_p,
+            "top_k": sampling.top_k,
+            "frequency_penalty": sampling.frequency_penalty,
+        }))
         .send()
         .await
         .map_err(|e| format!("LM Studio недоступен ({}): {}", url, e))?;
@@ -66,8 +90,8 @@ pub async fn chat_stream<F: FnMut(&str)>(
     Ok(full)
 }
 
-pub async fn chat_once(lm_url: Option<&str>, model: &str, messages: &Value) -> Result<String, String> {
-    chat_stream(lm_url, model, messages, |_| {}).await
+pub async fn chat_once(lm_url: Option<&str>, model: &str, messages: &Value, sampling: &Sampling) -> Result<String, String> {
+    chat_stream(lm_url, model, messages, sampling, |_| {}).await
 }
 
 pub async fn embeddings(lm_url: Option<&str>, model: &str, inputs: &[String]) -> Result<Vec<Vec<f32>>, String> {

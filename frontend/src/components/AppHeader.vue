@@ -74,10 +74,19 @@ function saveSettings() {
   localStorage.setItem('maxFiles', store.maxFiles);
   localStorage.setItem('maxTokens', store.maxTokens);
   localStorage.setItem('improvementIdeas', store.improvementIdeas ? '1' : '0');
+  for (const k of ['temperature', 'topP', 'topK', 'frequencyPenalty']) localStorage.setItem(k, String(store[k] ?? '').trim());
   localStorage.setItem('githubToken', store.githubToken.trim());
   showSettings.value = false;
   props.onReloadModels && props.onReloadModels();
 }
+
+// Поля сэмплирования; плейсхолдеры — рекомендованные значения для документации
+const samplingFields = [
+  { key: 'temperature', label: 'temperatureLabel', min: 0, max: 2, step: 0.05, placeholder: '0.2' },
+  { key: 'topP', label: 'topPLabel', min: 0.05, max: 1, step: 0.05, placeholder: '0.9' },
+  { key: 'topK', label: 'topKLabel', min: 1, max: 500, step: 1, placeholder: '40' },
+  { key: 'frequencyPenalty', label: 'freqPenaltyLabel', min: 0, max: 2, step: 0.05, placeholder: '0.1' },
+];
 
 const isGenerating = () =>
   ['queued', 'cloning', 'parsing', 'generating'].includes(store.progress.status);
@@ -216,6 +225,27 @@ const isGenerating = () =>
                 type="number" min="1000" step="1000" placeholder="8000"
                 class="w-full rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-400/50" />
             </div>
+          </div>
+          <div class="mt-3" data-testid="sampling-settings">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-medium text-slate-500 dark:text-slate-400">{{ t('samplingLabel') }}</span>
+              <button
+                type="button"
+                data-testid="sampling-reset-button"
+                class="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                @click="() => { store.temperature = ''; store.topP = ''; store.topK = ''; store.frequencyPenalty = ''; }">{{ t('samplingReset') }}</button>
+            </div>
+            <div class="grid grid-cols-4 gap-1.5">
+              <label v-for="f in samplingFields" :key="f.key" class="block">
+                <span class="block text-[10px] text-slate-400 dark:text-slate-500 mb-1 truncate" :title="t(f.label)">{{ t(f.label) }}</span>
+                <input
+                  v-model="store[f.key]"
+                  :data-testid="`sampling-${f.key}-input`"
+                  type="number" :min="f.min" :max="f.max" :step="f.step" :placeholder="f.placeholder"
+                  class="w-full rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-1.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-400/50" />
+              </label>
+            </div>
+            <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">{{ t('samplingHint') }}</p>
           </div>
           <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mt-3 mb-1.5">{{ t('ghTokenLabel') }}</label>
           <div class="flex gap-2">

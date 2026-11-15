@@ -4,8 +4,11 @@ mod chat;
 mod commands;
 mod lm;
 mod pipeline;
+mod planner;
+mod quality;
 mod repo;
 mod state;
+mod translate;
 mod xdp;
 
 use tauri::Manager;

@@ -1,6 +1,6 @@
 // Tauri-команды: полный аналог REST API web-версии
 use crate::pipeline::{GenParams, MERMAID_RULES};
-use crate::state::{del_prefix, get_json, get_str, repo_docs_dir, set_json, set_str, AppState};
+use crate::state::{del_prefix, get_json, repo_docs_dir, set_json, set_str, AppState};
 use base64::Engine;
 use serde_json::{json, Value};
 use std::sync::atomic::Ordering;
@@ -88,6 +88,16 @@ pub struct LangGenParams {
     #[serde(default, deserialize_with = "crate::pipeline::de_opt_usize")]
     pub max_tokens: Option<usize>,
     pub improvement_ideas: Option<bool>,
+    #[serde(default, deserialize_with = "crate::pipeline::de_opt_f64")]
+    pub temperature: Option<f64>,
+    #[serde(default, deserialize_with = "crate::pipeline::de_opt_f64")]
+    pub top_p: Option<f64>,
+    #[serde(default, deserialize_with = "crate::pipeline::de_opt_usize")]
+    pub top_k: Option<usize>,
+    #[serde(default, deserialize_with = "crate::pipeline::de_opt_f64")]
+    pub frequency_penalty: Option<f64>,
+    // true — перевести открытую версию (payload.repo), иначе сгенерировать заново
+    pub translate: Option<bool>,
 }
 
 // Догенерация недостающей языковой версии из кэша исходников (кнопка «+» в wiki)
@@ -102,7 +112,10 @@ pub fn start_generate_lang(app: tauri::AppHandle, state: State<'_, AppState>, pa
             content: String::from_utf8_lossy(&v).to_string(),
         })
         .collect();
-    if files.is_empty() {
+    let has_source_docs = get_json(&state.db, &format!("repo:{}", payload.repo))
+        .map_or(false, |r| r["sections"].as_array().map_or(false, |a| !a.is_empty()));
+    let translate_from = (payload.translate.unwrap_or(true) && has_source_docs && payload.repo.contains('@')).then(|| payload.repo.clone());
+    if files.is_empty() && translate_from.is_none() {
         return Err("Исходный код не найден в кэше — перегенерируйте репозиторий целиком".into());
     }
     let repo_key = format!("{}@{}", base, payload.language);
@@ -120,6 +133,11 @@ pub fn start_generate_lang(app: tauri::AppHandle, state: State<'_, AppState>, pa
         max_tokens: payload.max_tokens,
         improvement_ideas: payload.improvement_ideas,
         github_token: None,
+        temperature: payload.temperature,
+        top_p: payload.top_p,
+        top_k: payload.top_k,
+        frequency_penalty: payload.frequency_penalty,
+        translate_from,
     };
     let db = state.db.clone();
     let data_dir = state.data_dir.clone();
@@ -173,22 +191,32 @@ pub async fn generate_section(app: tauri::AppHandle, payload: SectionPayload) ->
         )
     };
     let max_tokens = payload.max_tokens.unwrap_or(8000);
-    let per_file = (max_tokens.saturating_sub(2500) / files.len().max(1)).max(400);
-    let mut code_ctx = String::new();
-    for f in &files {
-        if let Some(src) = get_str(&db, &format!("src:{}:{}", crate::state::base_repo(&payload.repo), f)) {
-            code_ctx.push_str(&format!("### {}\n```\n{}\n```\n\n", f, crate::pipeline::slice_by_tokens(&src, per_file)));
-        }
-    }
-    if code_ctx.is_empty() {
+    // Тот же контекст, что в пайплайне: map-reduce больших файлов + связанный код из других разделов
+    let base = crate::state::base_repo(&payload.repo).to_string();
+    let src_prefix = format!("src:{}:", base);
+    let contents: std::collections::HashMap<String, String> = crate::state::scan(&db, &src_prefix)
+        .into_iter()
+        .map(|(k, v)| (k[src_prefix.len()..].to_string(), String::from_utf8_lossy(&v).to_string()))
+        .collect();
+    let files: Vec<String> = files.into_iter().filter(|f| contents.contains_key(f)).collect();
+    if files.is_empty() {
         return Err("Исходный код раздела не найден — перегенерируйте репозиторий целиком".into());
     }
+    let all_files: Vec<String> = contents.keys().cloned().collect();
+    let cancel = state.cancel.clone();
+    cancel.store(false, Ordering::SeqCst);
+    let llm = crate::quality::Llm { db: &db, lm_url: payload.lm_url.as_deref(), model: &model, sampling: crate::lm::Sampling::default(), cancel: &cancel, max_tokens };
+    let budget = max_tokens.saturating_sub(2500).max(1500);
+    let related_budget = budget * 15 / 100;
+    let mut code_ctx = crate::quality::section_context(&llm, &files, &contents, budget - related_budget, |_, _, _| {}).await?;
+    let embs = crate::quality::load_embeddings(&db, &base);
+    code_ctx.push_str(&crate::quality::related_context(&files, &all_files, &contents, &embs, related_budget));
     let messages = json!([
-        { "role": "system", "content": format!("You are an expert software architect writing one section of a documentation wiki for the \"{repo}\" repository. Write a comprehensive, well-structured documentation page for the section \"{title}\" based on the provided source code. Structure: 1) start with a heading \"# {title}\"; 2) several paragraphs explaining the purpose and role of this part of the system; 3) EXACTLY ONE ```mermaid code block (graph TD syntax) showing relationships between the components of this section. {rules} 4) a Markdown table of key modules with columns Module | Purpose | Key file; 5) detailed subsections (## headings). Reference every file path in backticks. Output ONLY valid Markdown, strictly in {language}.", repo = payload.repo, title = title, rules = MERMAID_RULES, language = language) },
+        { "role": "system", "content": format!("You are an expert software architect writing one section of a documentation wiki for the \"{repo}\" repository. Write a comprehensive, well-structured documentation page for the section \"{title}\" based on the provided source code. Structure: 1) start with a heading \"# {title}\"; 2) several paragraphs explaining the purpose and role of this part of the system; 3) EXACTLY ONE ```mermaid code block (graph TD syntax) showing relationships between the components of this section. {rules} 4) a Markdown table of key modules with columns Module | Purpose | Key file; 5) detailed subsections (## headings). {coverage} Reference every file path in backticks. {lang_rules}", repo = payload.repo, title = title, rules = MERMAID_RULES, coverage = crate::quality::COVERAGE, lang_rules = crate::quality::lang_rules(&language)) },
         { "role": "user", "content": format!("Section: {}\n\nSource code of the section files:\n\n{}", title, code_ctx) }
     ]);
     let app2 = app.clone();
-    let markdown = crate::lm::chat_stream(payload.lm_url.as_deref(), &model, &messages, |d| {
+    let markdown = crate::lm::chat_stream(payload.lm_url.as_deref(), &model, &messages, &crate::lm::Sampling::default(), |d| {
         let _ = app2.emit("section-delta", d.to_string());
     })
     .await?;

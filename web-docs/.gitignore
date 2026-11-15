@@ -1,0 +1,8 @@
+node_modules/
+.cache/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+docs/.vitepress/generated-manifest.json
+docs/public/robots.txt
+# сгенерированные языковые папки документации
+docs/??/

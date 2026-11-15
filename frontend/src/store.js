@@ -7,6 +7,11 @@ export const store = reactive({
   maxFiles: localStorage.getItem('maxFiles') || '',
   maxTokens: localStorage.getItem('maxTokens') || '',
   improvementIdeas: localStorage.getItem('improvementIdeas') === '1',
+  // Сэмплирование LLM: пусто — рекомендованные значения для документации (0.2 / 0.9 / 40 / 0.1)
+  temperature: localStorage.getItem('temperature') || '',
+  topP: localStorage.getItem('topP') || '',
+  topK: localStorage.getItem('topK') || '',
+  frequencyPenalty: localStorage.getItem('frequencyPenalty') || '',
   githubToken: localStorage.getItem('githubToken') || '',
   repoUrl: localStorage.getItem('lastRepoUrl') || '',
   language: localStorage.getItem('language') || 'russian',

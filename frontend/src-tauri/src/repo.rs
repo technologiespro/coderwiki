@@ -158,8 +158,13 @@ pub fn build_tree(paths: &[String]) -> Value {
 
 // Извлечение зависимостей import/require между файлами (для вкладки «Архитектура»)
 pub fn extract_deps(files: &[String], contents: &std::collections::HashMap<String, String>) -> Value {
+    Value::Array(dep_edges(files, contents, 80).into_iter().map(|(a, b)| json!([a, b])).collect())
+}
+
+// Рёбра «файл → импортируемый файл» по относительным import/require (не более limit)
+pub fn dep_edges(files: &[String], contents: &std::collections::HashMap<String, String>, limit: usize) -> Vec<(String, String)> {
     let set: std::collections::HashSet<&String> = files.iter().collect();
-    let mut edges: Vec<Value> = Vec::new();
+    let mut edges: Vec<(String, String)> = Vec::new();
     for f in files {
         let content = match contents.get(f) {
             Some(c) => c,
@@ -189,16 +194,16 @@ pub fn extract_deps(files: &[String], contents: &std::collections::HashMap<Strin
             };
             if let Some(t) = target {
                 if &t != f {
-                    edges.push(json!([f, t]));
+                    edges.push((f.clone(), t));
                 }
             }
         }
-        if edges.len() >= 80 {
+        if edges.len() >= limit {
             break;
         }
     }
-    edges.truncate(80);
-    Value::Array(edges)
+    edges.truncate(limit);
+    edges
 }
 
 // Поиск относительных путей в import/require/from без regex-крейта

@@ -128,6 +128,10 @@ async function runGeneration() {
       maxFiles: store.maxFiles || undefined,
       maxTokens: store.maxTokens || undefined,
       improvementIdeas: store.improvementIdeas || undefined,
+      temperature: store.temperature || undefined,
+      topP: store.topP || undefined,
+      topK: store.topK || undefined,
+      frequencyPenalty: store.frequencyPenalty || undefined,
       githubToken: store.githubToken.trim() || undefined,
     });
     trackJob(jobId, repoKey);
@@ -155,6 +159,12 @@ async function generateLangVersion(code) {
       embeddingModel: store.embeddingModel || undefined,
       maxTokens: store.maxTokens || undefined,
       improvementIdeas: store.improvementIdeas || undefined,
+      temperature: store.temperature || undefined,
+      topP: store.topP || undefined,
+      topK: store.topK || undefined,
+      frequencyPenalty: store.frequencyPenalty || undefined,
+      // Новая языковая версия — перевод открытой (та же структура глав, mermaid и код сохраняются)
+      translate: true,
     });
     trackJob(jobId, repoKey);
   } catch (e) {
@@ -202,6 +212,10 @@ async function runLocalGeneration(name, files) {
       maxFiles: store.maxFiles || undefined,
       maxTokens: store.maxTokens || undefined,
       improvementIdeas: store.improvementIdeas || undefined,
+      temperature: store.temperature || undefined,
+      topP: store.topP || undefined,
+      topK: store.topK || undefined,
+      frequencyPenalty: store.frequencyPenalty || undefined,
       files,
     });
     trackJob(jobId, repoKey);

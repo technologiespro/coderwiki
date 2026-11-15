@@ -267,7 +267,7 @@ pub async fn answer(app: tauri::AppHandle, db: sled::Db, payload: ChatPayload) -
     let mut full_answer = String::new();
     for step in 0..4 {
         let app2 = app.clone();
-        let text = lm::chat_stream(lm_url, &model, &Value::Array(messages.clone()), |d| {
+        let text = lm::chat_stream(lm_url, &model, &Value::Array(messages.clone()), &lm::Sampling::default(), |d| {
             let _ = app2.emit("chat-delta", d.to_string());
         })
         .await?;

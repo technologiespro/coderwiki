@@ -1,0 +1,53 @@
+/* Фирменные цвета CoderWiki поверх темы VitePress */
+:root {
+  --vp-c-brand-1: #2563eb;
+  --vp-c-brand-2: #1d4ed8;
+  --vp-c-brand-3: #1e40af;
+  --vp-c-brand-soft: rgba(37, 99, 235, 0.14);
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
+}
+.dark {
+  --vp-c-brand-1: #60a5fa;
+  --vp-c-brand-2: #3b82f6;
+  --vp-c-brand-3: #2563eb;
+  --vp-c-brand-soft: rgba(96, 165, 250, 0.16);
+}
+
+/* Встроенный переключатель локалей заменён собственным (учитывает слаги глав) */
+.VPNavBarTranslations,
+.VPNavScreenTranslations {
+  display: none !important;
+}
+
+/* Диаграммы Mermaid — по центру, с прокруткой на узких экранах */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  margin: 24px 0;
+}
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* RTL: зеркалим отступы навигации и бейджей */
+[dir='rtl'] .VPDoc .content {
+  text-align: right;
+}
+[dir='rtl'] .cw-lang-switch {
+  margin-inline-start: 0;
+  margin-inline-end: 12px;
+}
+
+/* Таблицы «Key features» шире колонки — даём горизонтальную прокрутку */
+.vp-doc table {
+  display: block;
+  overflow-x: auto;
+}
+
+/* Активный тег витрины в тёмной теме — контрастнее светло-синего brand-1 */
+html.dark .cw-tag.is-active {
+  background: var(--vp-c-brand-3);
+  border-color: var(--vp-c-brand-3);
+}
